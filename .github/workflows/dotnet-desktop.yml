@@ -45,7 +45,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-
+  deploy-to-github-pages:
   build:
 
     strategy:
