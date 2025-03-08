@@ -1,0 +1,78 @@
+﻿@page "/"
+@using TotCum.Components
+@using TotCum.Services
+@using System.Xml.Serialization
+@inject NavigationManager UriHelper
+@inject FileService FileService
+
+<PageTitle>Home</PageTitle>
+
+<h4 class="mt-2 text-center"><strong>Convertitore delle unità temporali dei periodi di assicurazione all'unità temporale prevista dall'articolo 4, comma 7 del D.lgs n.42/2006.</strong></h4>
+
+<h4 class="mt-5">Attenzione:</h4>
+<h5 class="mt-3">Se il conto non è stato preventivamente sistemato il calcolo non sarà corretto. E' tuttavia possibile modificare o cancellare le singole registrazioni e inserirne di nuove.</h5>
+
+<h5 class="mt-2">Il programma non è ancora in grado di gestire la contribuzione agricola.</h5>
+
+<h5 class="mt-5">Per iniziare carica l'estratto in formato xml</h5>
+
+<div class="row mt-0">
+    <div class="col-5">
+        <InputFile OnChange="LoadFile" class="form-control mt-4" accept=".xml" />
+    </div>
+</div>
+
+
+@if (isLoading)
+{
+    <p>Uploading...</p>
+}
+
+@code {
+    private bool isLoading;
+    private bool isLoadingError;
+    private bool loadingCompleted;
+    private string errorLoadingDescription = string.Empty;
+    private string fileContent;
+
+    private async void LoadFile(InputFileChangeEventArgs e)
+    {
+        isLoading = true;
+        loadingCompleted = false;
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    using var reader = new StreamReader(stream);
+                    fileContent = await reader.ReadToEndAsync();
+
+                    FileService.FileContent = fileContent;
+                    UriHelper.NavigateTo($"/estrattoconto");
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+            }
+
+
+            UriHelper.NavigateTo($"estrattoconto");
+
+        }
+        catch (Exception ex)
+        {
+            isLoadingError = true;
+            errorLoadingDescription = ex.Message;
+        }
+
+        isLoading = false;
+        loadingCompleted = true;
+    }
+
+
+}

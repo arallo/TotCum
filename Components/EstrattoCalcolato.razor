@@ -1,0 +1,170 @@
+﻿@using TotCum.Models
+@using TotCum.Data
+@using TotCum.Components
+@using System.Globalization
+@inject ILogger<EstrattoCalcolato> Logger
+
+<div>
+    <table class="table table-sm table-hover">
+        <thead class="table-color-inps">
+            <tr>
+                <th class="align-middle" scope="col" rowspan="2">Fondo</th>
+                <th class="align-middle" scope="col" rowspan="2">Dal</th>
+                <th class="align-middle" scope="col" rowspan="2">Al</th>
+                <th class="align-middle text-center" colspan="3">Diritto</th>
+                <th class="align-middle text-center" colspan="3">Maggiore anz.</th>
+                <th class="align-middle text-center" rowspan="2">Segnalazioni</th>
+            </tr>
+            <tr>
+                <th>Anni</th>
+                <th>Mesi</th>
+                <th>Giorni</th>
+                <th>Anni</th>
+                <th>Mesi</th>
+                <th>Giorni</th>
+            </tr>
+
+        </thead>
+        <tbody>
+            @if (Conto != null)
+            {
+                @foreach (var record in Conto)
+                {
+                    <tr>
+                        <td>@record.Fondo</td>
+                        <td>@record.Inizio.ToShortDateString()</td>
+                        <td>@record.Fine.ToShortDateString()</td>
+                        <td>@record.AnniDiritto</td>
+                        <td>@record.MesiDiritto</td>
+                        <td>@record.GiorniDiritto</td>
+                        <td>@record.AnniMaggioreAnz</td>
+                        <td>@record.MesiMaggioreAnz</td>
+                        <td>@record.GiorniMaggioreAnz</td>
+                        <td>@record.Segnalazioni</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr><td>Estratto vuoto</td></tr>
+            }
+        </tbody>
+    </table>
+    <div class="row">
+        <div class="col-6">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th class="align-middle" colspan="2">Totale complessivo</th>
+                        <th class="align-middle text-center">Anni</th>
+                        <th class="align-middle text-center">Mesi</th>
+                        <th class="align-middle text-center">Giorni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="table-light">
+                        <td colspan="2">Per diritto anticipata</td>
+                        <td class="text-center">@AnniDiritto anni</td>
+                        <td class="text-center">@MesiDiritto mesi</td>
+                        <td class="text-center">@GiorniDiritto giorni</td>
+                    </tr>
+                    <tr class="table-light">
+                        <td colspan="2">Per maggiore anzianità</td>
+                        <td class="text-center">@AnniMaggAnz anni</td>
+                        <td class="text-center">@MesiMaggAnz mesi</td>
+                        <td class="text-center">@GiorniMaggAnz giorni</td>
+                    </tr>
+                    <tr class="table-light">
+                        <td colspan="2">Per diritto vecchiaia</td>
+                        <td class="text-center">@AnniMaggAnz anni</td>
+                        <td class="text-center">@MesiMaggAnz mesi</td>
+                        <td class="text-center">@GiorniMaggAnz giorni</td>
+                    </tr>
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<Periodo>? Conto { get; set; } = new();
+    private string? AnniDiritto;
+    private string? MesiDiritto;
+    private string? GiorniDiritto;
+    private string? AnniMaggAnz;
+    private string? MesiMaggAnz;
+    private string? GiorniMaggAnz;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // eseguo la sommatoria dei periodi
+        int contaAnniDir = 0;
+        int contaMesiDir = 0;
+        int contaGiorniDir = 0;
+        int contaAnniMA = 0;
+        int contaMesiMA = 0;
+        int contaGiorniMA = 0;
+
+        foreach (var periodo in Conto!)
+        {
+            contaAnniDir += periodo.AnniDiritto;
+            contaMesiDir += periodo.MesiDiritto;
+            contaGiorniDir += periodo.GiorniDiritto;
+            contaAnniMA += periodo.AnniMaggioreAnz;
+            contaMesiMA += periodo.MesiMaggioreAnz;
+            contaGiorniMA += periodo.GiorniMaggioreAnz;
+        }
+
+
+        (int anniD, int mesiD, int giorniD) = Normalizza(contaAnniDir, contaMesiDir, contaGiorniDir);
+        AnniDiritto = anniD.ToString();
+        MesiDiritto = mesiD.ToString();
+        GiorniDiritto = giorniD.ToString();
+
+        (int anniManz, int mesiManz, int giorniManz) = Normalizza(contaAnniMA, contaMesiMA, contaGiorniMA);
+        AnniMaggAnz = anniManz.ToString();
+        MesiMaggAnz = mesiManz.ToString();
+        GiorniMaggAnz = giorniManz.ToString();
+
+    }
+
+    private (int Anni, int Mesi, int Giorni) Normalizza(int anni, int mesi, int giorni)
+    {
+        /*
+        2 anni 48 mesi 126 giorni
+        mesidec = 126/26= 4,846153846153846
+        mesiFloor = 4
+        ggResto = 0,846153846153846
+        gg = ggResto *26 = 22 giorni
+
+        mesitot1 = mesiFloor + mesi = 48+4=52
+        aadec = 52 / 12 = 4,33333333333333
+        aa = 4
+        mmResto = aadec - aafloor = 0.33333333333333333
+        mm = mmResto * 12 = 4
+
+        anni += aa
+        mesi = mm
+        giorni = gg
+        */
+
+        double mesidec = giorni / 26.0;
+        int mesiFloor = (int)Math.Floor(mesidec);
+        double ggResto = mesidec - mesiFloor;
+        int gg = (int)(ggResto * 26);
+
+        int sommaParzialeMesi = mesiFloor + mesi;
+        double aaDec = sommaParzialeMesi / 12.0;
+        int aa = (int)(Math.Floor(aaDec));
+        double mmResto = aaDec - aa;
+
+        int mm = (int)(mmResto * 12);
+
+        aa += anni;
+
+        return (aa, mm, gg);
+    }
+}

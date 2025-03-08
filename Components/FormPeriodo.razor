@@ -1,0 +1,79 @@
+﻿@using TotCum.Models
+
+<h3>Gestione periodi</h3>
+
+<EditForm Model="@Periodo" OnValidSubmit="@(e => OnSalva.InvokeAsync(Periodo))">
+    <div class="form-group">
+        <div class="form-group">
+            <label for="gestione"><strong>Gestione:</strong></label>
+            <InputSelect id ="gestione" class="form-control" @bind-Value="@Periodo.Fondo">
+                <option value="">Scegli la gestione</option>
+                @foreach (var tipo in Enum.GetValues(typeof(TipoFondo)))
+                {
+                    <option value="@tipo">@tipo</option>
+                }
+            </InputSelect>
+
+        </div>
+
+        <div class="form-group">
+            <label for="ctr"><strong>Contributo:</strong></label>
+            <InputText id="ctr" @bind-Value="Periodo.DescrizioneContributo" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.DescrizioneContributo)" />
+        </div>
+        <div class="form-group">
+            <label for="inizio"><strong>Inizio:</strong></label>
+            <InputDate id="inizio" @bind-Value="Periodo.Inizio" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Inizio)" />
+        </div>
+        <div class="form-group">
+            <label for="fine"><strong>Fine:</strong></label>
+            <InputDate id="fine" @bind-Value="Periodo.Fine" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Fine)" />
+        </div>
+        <div class="form-group">
+            <label for="anni"><strong>Anni:</strong></label>
+            <InputNumber id="anni" @bind-Value="Periodo.Anni" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Anni)" />
+        </div>
+        <div class="form-group">
+            <label for="mesi"><strong>Mesi:</strong></label>
+            <InputNumber id="mesi" @bind-Value="Periodo.Mesi" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Mesi)" />
+        </div>
+        <div class="form-group">
+            <label for="giorni"><strong>Giorni:</strong></label>
+            <InputNumber id="giorni" @bind-Value="Periodo.Giorni" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Giorni)" />
+        </div>
+        <div class="form-group">
+            <label for="settimane"><strong>Settimane:</strong></label>
+            <InputNumber id="settimane" @bind-Value="Periodo.Settimane" class="form-control" />
+            <ValidationMessage For="@(() => Periodo.Settimane)" />
+        </div>
+
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Salva</button>
+            <button type="button" class="btn btn-warning" @onclick="OnAnnulla">Annulla</button>
+        </div>
+
+    </div>
+</EditForm>
+
+@code {
+
+    [Parameter]
+    public Periodo Periodo { get; set; }
+
+    [Parameter]
+    public EventCallback<Periodo> OnSalva { get; set; }
+
+    [Parameter]
+    public EventCallback OnAnnulla { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+}

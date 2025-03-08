@@ -1,0 +1,83 @@
+﻿@inherits LayoutComponentBase
+
+<div class="bb-page">
+    <Sidebar @ref="sidebar"
+             Href="/"
+             IconName="IconName.HouseAdd"
+             Title="TotCum"
+             DataProvider="SidebarDataProvider"
+             Width="210" WidthUnit="Unit.Px" />
+
+    <main>
+        <div class="bb-top-row px-4 d-flex justify-content-between">
+            <Icon Name="IconName.List" role="button" @onclick="ToggleSidebar" />
+            <p>versione beta - ultimo aggiornamento 04/03/2025</p>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    Sidebar sidebar = default!;
+    IEnumerable<NavItem>? navItems;
+
+    private async Task<SidebarDataProviderResult> SidebarDataProvider(SidebarDataProviderRequest request)
+    {
+        if (navItems is null)
+            navItems = GetNavItems();
+
+        return await Task.FromResult(request.ApplyTo(navItems));
+    }
+
+    private IEnumerable<NavItem> GetNavItems()
+    {
+        navItems = new List<NavItem>
+        {
+            new NavItem { Href = "/", IconName = IconName.HouseDoorFill, Text = "Home"},
+        };
+        return navItems;
+    }
+
+    private void ToggleSidebar() => sidebar.ToggleSidebar();
+}
+
+<style>
+    :root {
+        --bb-sidebar-collapsed-width: 50px;
+        --bb-sidebar-background-color: #F2F6FC;
+        --bb-sidebar-top-row-background-color: #00368F;
+        --bb-sidebar-top-row-border-color: #00368F;
+        --bb-sidebar-title-text-color: rgb(255,255,255);
+        --bb-sidebar-brand-icon-color: #425bc9;
+        --bb-sidebar-brand-image-width: 24px;
+        --bb-sidebar-brand-image-height: 24px;
+        --bb-sidebar-title-badge-text-color: rgb(255,255,255);
+        --bb-sidebar-title-badge-background-color: rgba(0,54,143,var(--bs-bg-opacity,1));
+        --bb-sidebar-navbar-toggler-icon-color: rgb(255,255,255);
+        --bb-sidebar-navbar-toggler-background-color: rgba(255,255,255);
+        --bb-sidebar-content-border-color: rgb(194,192,192);
+        --bb-sidebar-nav-item-text-color: #00368F;
+        /* --bb-sidebar-nav-item-text-active-color-rgb: 217, 228, 247; */
+        --bb-sidebar-nav-item-text-active-color-rgb: 0,36,96;
+        /* --bb-sidebar-nav-item-text-hover-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.9); */
+        --bb-sidebar-nav-item-text-hover-color: #D9E4F7;
+        --bb-sidebar-nav-item-text-active-color: rgba(var(--bb-sidebar-nav-item-text-active-color-rgb),0.9);
+        --bb-sidebar-nav-item-background-hover-color: #84A9E6;
+        --bb-sidebar-nav-item-group-background-color: #D9E4F7;
+
+    }
+
+    .bb-top-row {
+        color: white;
+        background-color: #00368F;
+        border-bottom: 1px solid #00368F;
+        justify-content: flex-end;
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+    }
+
+</style>

@@ -1,0 +1,208 @@
+﻿@using TotCum.Components
+@using TotCum.Data
+@using System.Globalization
+@using TotCum.Models
+@inject ILogger<EstrattoBase> Logger
+
+<div class="ms-2 me-2">
+    <div class="d-flex flex-fill pt-2 mb-0 pb-2 justify-content-end" style="background-color: #2F6DD5">
+        <Button Style="color: white" Color="ButtonColor.None" Size="BlazorBootstrap.ButtonSize.Small" @onclick="() => NuovoPeriodo()">Aggiungi nuovo periodo</Button>
+        <Button Style="color: white" Color="ButtonColor.None" Size="BlazorBootstrap.ButtonSize.Small" @onclick="() => AvviaElaborazione()">Elabora</Button>
+    </div>
+    <table class="table table-sm table-hover">
+        <thead>
+            <tr>
+                <th class="align-middle" scope="col" rowspan="2">Fondo</th>
+                <th class="align-middle" scope="col" rowspan="2">Tipo di contribuzione</th>
+                <th class="align-middle" scope="col" rowspan="2">Dal</th>
+                <th class="align-middle" scope="col" rowspan="2">Al</th>
+                <th class="text-center" scope="col" colspan="4">Contributi</th>
+                <th class="align-middle text-center" scope="col" rowspan="2">Segnalazioni</th>
+                <th class="align-middle" scope="col" rowspan="2">Azioni</th>
+            </tr>
+
+            <tr class="table-color-inps">
+                <th scope="col">Anni</th>
+                <th scope="col">Mesi</th>
+                <th scope="col">Giorni</th>
+                <th scope="col">Settimane</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Conto != null)
+            {
+                @foreach (var record in Conto)
+                {
+                    <tr class="@(record.Fondo == TipoFondo.FondoNonPrevisto | record.PeriodoSovrapposto ? "table-warning" : "")">
+                        <td>@record.Fondo</td>
+                        <td>@record.DescrizioneContributo</td>
+                        <td>@record.Inizio.ToShortDateString()</td>
+                        <td>@record.Fine.ToShortDateString()</td>
+                        <td>@record.Anni</td>
+                        <td>@record.Mesi</td>
+                        <td>@record.Giorni</td>
+                        <td>@record.Settimane</td>
+                        <td>@record.Segnalazioni</td>
+                        <td>
+                            <Button Color="ButtonColor.Warning" Size="BlazorBootstrap.ButtonSize.ExtraSmall" @onclick="() => ModificaPeriodo(record)" TooltipTitle="Modifica" TooltipPlacement="BlazorBootstrap.TooltipPlacement.Top"><Icon Name="IconName.Pencil" Size="IconSize.None" /></Button>
+                            <Button Color="ButtonColor.Danger" Size="BlazorBootstrap.ButtonSize.ExtraSmall" @onclick="() => CancellaPeriodo(record)" TooltipTitle="Cancella" TooltipPlacement="BlazorBootstrap.TooltipPlacement.Top"><Icon Name="IconName.Eraser" /></Button>
+                        </td>
+                    </tr>
+                }
+            }
+
+        </tbody>
+    </table>
+
+    @if (Scartati!.Any())
+    {
+        <div class="row">
+            <h5 class="mt-4" style="color:red">Periodi scartati da verificare</h5>
+            <div class="col-10">
+                <table class="table table-sm table-hover">
+                    <thead class="table-color-inps">
+                        <tr>
+                            <th class="align-middle">Tipo di contribuzione</th>
+                            <th class="align-middle">Dal</th>
+                            <th class="align-middle">Al</th>
+                            <th class="text-center">Tipo contributo</th>
+                            <th class="text-center">Contributo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var record in Scartati!)
+                        {
+                            <tr class="table-warning">
+                                <td>@record.TipoContribuzione</td>
+                                <td>@(record.Dal != null ? record.Dal.Giorno!.ToString() + "/" + record.Dal.Mese!.ToString() + "/" + record.Dal.Anno!.ToString() : "Periodo senza collocazione temporale")</td>
+                                <td>@(record.Al != null ? record.Al.Giorno!.ToString() + "/" + record.Al.Mese!.ToString() + "/" + record.Al.Anno!.ToString() : "--")</td>
+                                <td class="text-center">@record.TipoContributo</td>
+                                <td class="text-center">@record.ContributiUtiliDiritto</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+            </div>
+            
+        </div>
+    }
+
+
+    <Modal @ref="modal"
+    Size="BlazorBootstrap.ModalSize.Large"
+    HeaderCssClass="headermodalcolor"
+    UseStaticBackdrop="true"
+    CloseOnEscape="false"
+    ShowCloseButton="false" />
+
+    <ConfirmDialog @ref="dialog" />
+
+</div>
+
+@code {
+    private Modal modal = default!;
+    private ConfirmDialog dialog = default!;
+
+    [CascadingParameter]
+    public List<Periodo>? Conto { get; set; } = new();
+
+    [CascadingParameter]
+    public List<RigaContributi>? Scartati { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<Periodo>> OnElabora { get; set; }
+
+
+    private async Task NuovoPeriodo()
+    {
+        var parameters = new Dictionary<string, object>();
+        Periodo periodo = new();
+        parameters.Add("Periodo", periodo);
+        parameters.Add("OnSalva", EventCallback.Factory.Create<Periodo>(this, SalvaPeriodoAsync));
+        parameters.Add("OnAnnulla", EventCallback.Factory.Create(this, ChiudiModalAsync));
+        await modal.ShowAsync<FormPeriodo>(title: "Nuovo periodo", parameters: parameters);
+    }
+
+    private async Task ModificaPeriodo(Periodo periodo)
+    {
+        var parameters = new Dictionary<string, object>();
+        parameters.Add("Periodo", periodo);
+        parameters.Add("OnSalva", EventCallback.Factory.Create<Periodo>(this, SalvaPeriodoAsync));
+        parameters.Add("OnAnnulla", EventCallback.Factory.Create(this, ChiudiModalAsync));
+        await modal.ShowAsync<FormPeriodo>(title: "Modifica periodo", parameters: parameters);
+    }
+
+    private async Task CancellaPeriodo(Periodo periodo)
+    {
+        var options = new ConfirmDialogOptions
+            {
+                YesButtonText = "OK",
+                YesButtonColor = ButtonColor.Danger,
+                NoButtonText = "ANNULLA",
+                NoButtonColor = ButtonColor.Success
+            };
+
+        var confirmation = await dialog.ShowAsync(
+            title: "Cancellazione perido",
+            message1: $"Confermi la cancellazione del periodo {periodo.Inizio.ToShortDateString()}-{periodo.Fine.ToShortDateString()}?",
+            confirmDialogOptions: options);
+
+        if (confirmation)
+        {
+            Conto!.Remove(periodo);
+        }
+
+    }
+
+    private async Task ChiudiModalAsync()
+    {
+        await modal!.HideAsync();
+    }
+
+
+    private async Task SalvaPeriodoAsync(Periodo periodo)
+    {
+        var periodoX = Conto!.Find(x => x.Id == periodo.Id);
+
+        if (periodoX is not null)
+        {
+            periodoX.Inizio = periodo.Inizio;
+            periodoX.Fine = periodo.Fine;
+            periodoX.Fondo = periodo.Fondo;
+            periodoX.Anni = periodo.Anni;
+            periodoX.Mesi = periodo.Mesi;
+            periodoX.Giorni = periodo.Giorni;
+            periodoX.Settimane = periodo.Settimane;
+            periodoX.DescrizioneContributo = periodo.DescrizioneContributo;
+        }
+        else
+        {
+            Conto.Add(periodo);
+        }
+        await modal!.HideAsync();
+
+    }
+
+    public void AvviaElaborazione()
+    {
+        OnElabora.InvokeAsync(Conto);
+    }
+
+}
+<style>
+
+    th {
+        background-color: #00368F !important;
+        color: white !important;
+    }
+
+
+    .headerGridcolor {
+        background-color: #002460 !important;
+        --bb-table-sticky-background-color: #002460 !important;
+        color: white !important;
+        border-color: #002460 !important;
+        border-top: 0;
+    }
+</style>

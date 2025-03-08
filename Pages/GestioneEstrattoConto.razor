@@ -1,0 +1,158 @@
+﻿@page "/estrattoconto"
+@using System;
+@using TotCum.Models
+@using TotCum.Data
+@using TotCum.Components
+@using TotCum.Services
+@using System.Xml.Serialization
+@using System.Text.RegularExpressions
+@using System.Text
+
+@inject ILogger<GestioneEstrattoConto> Logger
+@inject IGeneraContoCalcolato GeneraContoCalcolato
+@inject FileService FileService
+
+
+<PageTitle>Estratto conto</PageTitle>
+
+<div>
+    <h4 class="my-3">@assicurato</h4>
+</div>
+
+<div class="rouded shadow">
+    <Tabs @ref="tabs" EnableFadeEffect="true">
+        <Tab Title="Periodi estratto" Active="true">
+            <Content>
+                <CascadingValue Value="@contoBase">
+                    <CascadingValue Value="@scartati">
+                        <EstrattoBase OnElabora="Elaborazione" />
+                    </CascadingValue>
+                </CascadingValue>
+            </Content>
+        </Tab>
+        <Tab Title="Estratto calcolato">
+            <Content>
+                @if (isContoCalcolato)
+                {
+                    <EstrattoCalcolato Conto="contoCalcolato" />
+                }
+                else
+                {
+                    <div class="text-center align-middle"><h4 class="mt-4">Errore nell'elaborazione</h4></div>
+                }
+            </Content>
+        </Tab>
+    </Tabs>
+
+</div>
+
+<Modal IsServiceModal="true" />
+<ConfirmDialog @ref="dialog" />
+
+@code{
+    Tabs tabs = default!;
+    [Inject] ModalService ModalService { get; set; } = default!;
+    private ConfirmDialog dialog = default!;
+
+    private List<Periodo>? contoBase { get; set; } = new();
+    private List<RigaContributi>? scartati { get; set; } = new();
+    private List<Periodo>? contoCalcolato { get; set; } = new();
+    private string assicurato = "";
+    private bool isContoCalcolato = false;
+
+    protected override void OnInitialized()
+    {
+        @if (FileService.FileContent != null)
+        {
+            var serializer = new XmlSerializer(typeof(EstrattoConto));
+            using var stringReader = new StringReader(FileService.FileContent);
+            var ec = (EstrattoConto)serializer.Deserialize(stringReader)!;
+
+            var gc = new GeneraContoGrezzo(ec);
+            contoBase = gc.ContoGrezzo.ToList();
+            scartati = gc.Scartati.ToList();
+            assicurato = string.Concat(ec.DatiAnagrafici!.Cognome, " ", ec.DatiAnagrafici.Nome, " ", ec.DatiAnagrafici.CodiceFiscale);
+        }
+    }
+
+    public void NotifyChange()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void Elaborazione(List<Periodo> contoBaseModificato)
+    {
+        try
+        {
+            var cCalc = GeneraContoCalcolato.ElaboraDati(contoBaseModificato);
+
+            if (cCalc is not null)
+            {
+                var warnings = cCalc.Where(x => x.Segnalazioni?.Length > 0);
+
+                if (warnings.Any())
+                {
+                    var options = new ConfirmDialogOptions
+                        {
+                            YesButtonText = "Si",
+                            YesButtonColor = ButtonColor.Primary,
+                            NoButtonText = "No",
+                            NoButtonColor = ButtonColor.Secondary
+                        };
+
+                    var confirmation = await dialog.ShowAsync(
+                        title: "Rilevazione periodi da verificare",
+                        message1: "Sono stati rilevati periodi sovrapposti in uno o più anni che devono essere verificati. Continuando il calcolo non sarà attendibile",
+                        message2: "Confermare?", 
+                        confirmDialogOptions: options);
+
+                    if (confirmation)
+                    {
+                        contoCalcolato = cCalc.ToList();
+                        isContoCalcolato = true;
+                        await tabs.ShowTabByIndexAsync(1);
+                        NotifyChange();
+                    }
+                    else
+                    {
+                        isContoCalcolato = false;
+                        NotifyChange();
+                    }
+                }
+                else
+                {
+                    contoCalcolato = cCalc.ToList();
+                    isContoCalcolato = true;
+                    await tabs.ShowTabByIndexAsync(1);
+                    NotifyChange();
+                }
+            }
+            else
+            {
+                var modalOption = new ModalOption
+                    {
+                        Title = "Rilevazione errori",
+                        Message = "Estratto è null",
+                        Type = ModalType.Danger
+                    };
+
+                await ModalService.ShowAsync(modalOption);
+            }
+
+        }
+        catch (Exception ex)
+        {
+            var modalOption = new ModalOption
+                {
+                    Title = "Rilevazione errori",
+                    Message = $"Data: {ex.Data.Values.ToString()} Message: {ex.Message}",
+                    Type = ModalType.Danger
+                };
+
+            await ModalService.ShowAsync(modalOption);
+        }
+        
+    }
+
+}
+
